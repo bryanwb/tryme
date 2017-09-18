@@ -1,0 +1,9 @@
+mock
+invoke
+pytest-mock
+
+# these are refactoring debugging libs used by vim, emacs, and SublimeText
+jedi
+importmagic
+ipython==4
+autopep8
