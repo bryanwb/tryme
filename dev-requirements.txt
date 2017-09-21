@@ -1,6 +1,9 @@
 mock
 invoke
 pytest-mock
+Sphinx>1.6
+twine
+sphinx-rtd-theme
 
 # these are refactoring debugging libs used by vim, emacs, and SublimeText
 jedi

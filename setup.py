@@ -4,20 +4,20 @@ from os import path
 from distutils.core import setup
 
 
-VERSION = '0.0.1'
-
 if sys.version_info < (2, 7):
     sys.exit('tryme requires Python 2.7 or higher')
 
 ROOT_DIR = path.abspath(path.dirname(__file__))
 sys.path.insert(0, ROOT_DIR)
 
+from tryme import VERSION
+from tryme import __doc__ as DESCRIPTION
 LONG_DESCRIPTION = open(path.join(ROOT_DIR, 'README.rst')).read()
 
 setup(
     name='tryme',
     version=VERSION,
-    description='Error handling for humans',
+    description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     classifiers=[
         'Development Status :: 4 - Beta',
