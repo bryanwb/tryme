@@ -404,9 +404,13 @@ It also takes some inspiration from the excellent `vavr <https://vavr.io>`_ libr
 See this excellent `tutorial <http://danielwestheide.com/blog/2012/12/26/the-neophytes-guide-to-scala-part-6-error-handling-with-try.html>`_
 on the Try utility in Scala.
 
-Pssssh! While this package uses *gasp* monads as the core abstraction it does not provide
-general purpose implementations of monad, applicatives, and functors. Further it does
-not attempt to overload common Python operators to support function composition.
+Pssssh! This package uses *gasp* monads as the core abstraction. *Don't tell
+anyone!* They will sick the procedural programming police on your dear author. While this
+package does have a Monad class, it does not provide general purpose
+implementations of monad, applicative, and functor. Further it does not
+attempt to overload common Python operators to support function composition. This is
+because your dear author is of the opinion that Python's syntax is too limited
+to support monadic composition.
 
 
 Installation

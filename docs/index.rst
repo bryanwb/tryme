@@ -2,19 +2,12 @@ Welcome to Tryme's documentation!
 **********************************
 
 .. toctree::
+   :maxdepth: 2
+              
+   intro
+   reference
 
 
-.. include:: ../README.rst
-
-
-API Reference
-=============
-
-.. automodule:: tryme
-   :members:
-   :show-inheritance:
-             
-             
 Indices and tables
 ==================
 
