@@ -116,21 +116,21 @@ def test_try_to_console(capsys):
         assert sys_exit.value.code == 6
 
 
-def test_try_fail_if_error(capsys):
+def test_try_fail_for_error(capsys):
     # no SystemExit should be raised
-    assert Success('It worked!').fail_if_error() is None
+    assert Success('It worked!').fail_for_error() is None
     stdout, stderr = capsys.readouterr()
     assert stdout == '' and stderr == ''
 
     failure_message = 'It failed!'
     with pytest.raises(SystemExit):
-        Failure(failure_message).fail_if_error()
+        Failure(failure_message).fail_for_error()
     stdout, stderr = capsys.readouterr()
     assert stderr == failure_message + os.linesep
     assert stdout == ''
 
     with pytest.raises(SystemExit) as sys_exit:
-        Failure(failure_message).fail_if_error(exit_status=6)
+        Failure(failure_message).fail_for_error(exit_status=6)
         assert sys_exit.value.code == 1
     
 

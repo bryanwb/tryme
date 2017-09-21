@@ -1,6 +1,8 @@
 mock
 invoke
 pytest-mock
+Sphinx
+twine
 
 # these are refactoring debugging libs used by vim, emacs, and SublimeText
 jedi

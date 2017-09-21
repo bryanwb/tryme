@@ -270,7 +270,7 @@ class Try(Monad, Ord):
         else:
             to_console(self.get_message(), nl=nl, err=True, exit_err=exit_err, exit_status=exit_status)
 
-    def fail_if_error(self, exit_status=1):
+    def fail_for_error(self, exit_status=1):
         '''
         If a Failure, write the message to stderr and exit with return code of `exit_status`
         Does nothing if a Success
@@ -745,6 +745,12 @@ def retry(*args, **kwargs):
 
     Usage:
     >>> deadline = time.time() + 300
+    >>> dinnfer_iterator = iter([False, False, True])
+    >>> def dinner_is_ready():
+    ...     return dinner_iterator.next()
+    >>> breakfast_iterator = iter([False, False, True])
+    >>> def breakfast_is_ready():
+    ...     return breakfast_iterator.next()
     >>> @retry
     ... def wait_for_dinner():
     ...     if dinner_is_ready() is False:
@@ -759,7 +765,7 @@ def retry(*args, **kwargs):
     ...     else:
     ...         return Success("Ready!")
     >>> wait_for_breakfast_with_retry = retry(wait_for_breakfast)
-    >>> wait_for_breakfast_with_retry()
+    >>> wait_for_breakfast_with_retry() # doctest: +SKIP
     (RetryLog, Success("Ready!"))
     '''
 
