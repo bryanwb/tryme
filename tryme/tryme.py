@@ -90,35 +90,49 @@ class FailureError(Exception):
     pass
 
 
+class InvalidTryError(Exception):
+    pass
+
+
 class Try(Monad, Ord):
     """A wrapper for operations that may fail
 
     Represents values/computations with two possibilities.
 
-    >>> Success(42)
-    Success(42)
-    >>> Success([1, 2, 3])
-    Success([1, 2, 3])
-    >>> Failure('Error')
-    Failure('Error')
-    >>> Success(Failure('Error'))
-    Success(Failure('Error'))
-    >>> isinstance(Success(1), Try)
-    True
-    >>> isinstance(Failure(None), Try)
-    True
-    >>> saving = 100
-    >>> broke = Failure('I am broke')
-    >>> spend = lambda cost: broke if cost > saving else Success(saving - cost)
-    >>> spend(90)
-    Success(10)
-    >>> spend(120)
-    Failure('I am broke')
-    >>> safe_div = lambda a, b: Failure(str(a) + '/0') if b == 0 else Success(a / b)
-    >>> safe_div(12.0, 6)
-    Success(2.0)
-    >>> safe_div(12.0, 0)
-    Failure('12.0/0')
+    :param value: value to contain
+    :param message: (optional) message to output to console if to_console is called.
+                   If None, a string representation of the contained value is output.
+                   Defaults to ``None``
+    :param start: (optional) start time for the operation, in seconds since the UNIX epoch
+                  `time.time()` is typically used for this value. Defaults to ``None``.
+    :type start: int
+    :param end: (optional) end time for the operation, in seconds since the UNIX epoch
+                  ``time.time()`` is typically used for this value. Defaults to ``None``.
+    :type end: int
+    :param count: (optional) number of times the operation has been executed. Defaults to ``1``
+    :type end: int
+
+    Usage::
+
+      >>> Success(42)
+      Success(42)
+      >>> Success([1, 2, 3])
+      Success([1, 2, 3])
+      >>> Failure('Error')
+      Failure('Error')
+      >>> Success(Failure('Error'))
+      Success(Failure('Error'))
+      >>> isinstance(Success(1), Try)
+      True
+      >>> isinstance(Failure(None), Try)
+      True
+      >>> saving = 100
+      >>> insolvent = Failure('I am insolvent')
+      >>> spend = lambda cost: insolvent if cost > saving else Success(saving - cost)
+      >>> spend(90)
+      Success(10)
+      >>> spend(120)
+      Failure('I am insolvent')
 
     Map operation with ``map``, applies function to value only if it is a Success and returns a Success
 
@@ -156,15 +170,16 @@ class Try(Monad, Ord):
     >>> Success(-2) < Success(-1)
     True
     """
-    def __init__(self, value, message=None):
-        '''Constructor for a Try
-        
-        :param value: value to contain
-        :param message: (optional) message to output to console if to_console is called.
-                        If None, a string representation of the contained value is output
-        '''
+    def __init__(self, value, message=None, start=None, end=None, count=1):
         super(Try, self).__init__(value)
         self._message = message
+        self._start = start
+        self._end = end
+        self._count = count
+        if (start is None and end is not None) or (end is None and start is not None):
+            raise InvalidTryError(
+                "The start and end argument must either be both None or not None")
+        
         if type(self) is Try:
             raise NotImplementedError('Please use Failure or Success instead')
 
@@ -235,7 +250,8 @@ class Try(Monad, Ord):
         """
         return not(bool(self))
 
-    def get_message(self):
+    @property
+    def message(self):
         '''
         Return the message for the Try. If the ``message`` argument was provided to the constructor
         that value is returned. Otherwise the string representation of the contained value is returened
@@ -245,13 +261,71 @@ class Try(Monad, Ord):
         else:
             return str(self._value)
 
-    def set_message(self, message):
+    @property
+    def start(self):
         '''
-        Sets the message for the Failure. This method, one of very few in this module,
-        flagrantly violates the principle of immutability
+        Start time of the operation in seconds since the UNIX epoch if specified in
+        the constructor or with the ``update`` method, ``None`` otherwise
         '''
-        self._message = message
-        return self
+        return self._start
+
+    @property
+    def end(self):
+        '''
+        End time of the operation in seconds since the UNIX epoch if specified in
+        the constructor or with the ``update`` method, ``None`` otherwise
+        '''
+        return self._end
+
+    @property
+    def elapsed(self):
+        '''
+        End time of the operation in seconds since the UNIX epoch if the start and end arguments
+        were specified in the constructor or with the ``update`` method, ``None`` otherwise
+        '''
+        if self._end is None and self._start is None:
+            return None
+        
+        return self.end - self.start
+
+    @property
+    def count(self):
+        '''Number of times the operation has been tried'''
+        return self._count
+
+    def update(self, message=None, start=None, end=None, count=1):
+        '''
+        Update the Try with new properties but the same value. Returns a new :class:`Failure`
+        or :py:class:`Success` and does not actually update in place.
+
+        :param message: (optional) message to output to console if to_console is called.
+                   If None, a string representation of the contained value is output.
+                   Defaults to ``None``
+        :param start: (optional) start time for the operation, in seconds since the UNIX epoch
+                  `time.time()` is typically used for this value. Defaults to ``None``.
+        :type start: int
+        :param end: (optional) end time for the operation, in seconds since the UNIX epoch
+                  ``time.time()`` is typically used for this value. Defaults to ``None``.
+        :type end: int
+        :param count: (optional) number of times the operation has been executed. Defaults to ``1``
+        :type end: int
+        '''
+        if (start is None and end is not None) or (end is None and start is not None):
+            raise InvalidTryError(
+                "The start and end argument must either be both None or not None")
+        
+        message = message or self._message
+
+        # start = start or self._start does not work because start may == 0 and is therefore falsey
+        if start is None:
+            start = self._start
+        if end is None:
+            end = self._end
+        if count is None:
+            count = self._count
+
+        constructor = type(self)
+        return constructor(self._value, message=message, start=start, end=end, count=count)
 
     def to_console(self, nl=True, exit_err=False, exit_status=1):
         '''
@@ -266,9 +340,9 @@ class Try(Monad, Ord):
         :param exit_status: (optional) the numeric exist status to return if exit is True
         '''
         if self.succeeded():
-            to_console(self.get_message(), nl=nl)
+            to_console(self.message, nl=nl)
         else:
-            to_console(self.get_message(), nl=nl, err=True, exit_err=exit_err, exit_status=exit_status)
+            to_console(self.message, nl=nl, err=True, exit_err=exit_err, exit_status=exit_status)
 
     def fail_for_error(self, exit_status=1):
         '''
@@ -279,7 +353,7 @@ class Try(Monad, Ord):
         :type exit_status: int
         '''
         if self.failed():
-            to_console(self.get_message(), nl=True, err=True, exit_err=True,
+            to_console(self.message, nl=True, err=True, exit_err=True,
                        exit_status=exit_status)
 
     def raise_for_error(self, exception=FailureError):
@@ -606,11 +680,11 @@ class StoppedClock:
         return current_time_val
 
 
-class TickCounter:
+class Counter:
     '''A simple counter'''
 
-    def __init__(self):
-        self._count = 0
+    def __init__(self, initial=0):
+        self._count = initial
 
     def increment(self):
         self._count = self._count + 1
@@ -625,7 +699,7 @@ class TickCounter:
 
 def tick_counter(column_limit=80):
 
-    counter = TickCounter()
+    counter = Counter()
     
     def write_tick(log):
         sys.stdout.write('.')
@@ -640,46 +714,6 @@ def tick_counter(column_limit=80):
     
 
 _clock = SystemClock()
-
-
-class RetryLog:
-    '''A log of the retry session
-
-    Container for information about the retry session
-    '''
-    
-    def __init__(self, start):
-        '''
-        :param start: start time in seconds since the UNIX epoch
-        :type start: double
-        '''
-        self._start = start
-        self._end = start
-        self._count = 0
-
-    @property
-    def start(self):
-        return self._start
-    
-    @property
-    def end(self):
-        return self._end
-
-    @end.setter
-    def end(self, value):
-        self._end = value
-
-    @property
-    def elapsed(self):
-        return self.end - self.start
-
-    @property
-    def count(self):
-        return self._count
-
-    def inc_count(self):
-        '''Increment the count of retries by 1'''
-        self._count = self._count + 1
 
 
 class InvalidCallableError(Exception):
@@ -701,26 +735,29 @@ def retry_wrapper(acallable, timeout=300, delay=4, status_callback=None):
         start = _clock.time()
         assert timeout > 0, 'the timeout keyword argument must be greater than 0'
         deadline = start + timeout
-        log = RetryLog(start)
+        counter = Counter(0)
         current_time = start
 
         while current_time < deadline:
+            counter.increment()
             result = acallable(*args, **kwargs)
             current_time = _clock.time()
-            log.end = current_time
+            end = current_time
             raise_if_invalid_result(result)
 
-            if status_callback:
-                status_callback(log)
-
-            log.inc_count()
+            # update with time accounting
+            result = result.update(start=start, end=end, count=counter.count)
             if result.succeeded():
-                return log, result
+                if status_callback:
+                    status_callback(result)
+                return result
             else:
+                if status_callback:
+                    status_callback(result)
                 _clock.sleep(delay)
-        
-        return log, result
 
+        return result.update(start=start, end=end, count=counter.count)
+    
     return _retry
 
 
@@ -729,9 +766,9 @@ def retry(*args, **kwargs):
     Function that wraps a callable with a retry loop. The callable should only return
     :class:Failure, :class:Success, or raise an exception. This function can
     be used as a decorator or directly wrap a function. This method returns a 
-    tuple of the RetryLog and result which may be an instance of Success or Failure.
-    The RetryLog object contains accounting data for the time waited and number of
-    retries.
+    a result object which is an instance of py:class:`Success` or py:class:`Failure`.
+    This function updates the result with the time of the first attempt, the time
+    of the last attempt, and the total count of attempts
 
     :param acallable: object that can be called
     :type acallable: function
@@ -739,11 +776,12 @@ def retry(*args, **kwargs):
     :type timeout: int
     :param delay: (optional) delay between retries in seconds
     :type delay: int
-    :param status_callback: (optional) callback to invoke after each retry, is passed the log as the argument
+    :param status_callback: (optional) callback to invoke after each retry, is passed the result
+                            as an argument
     :type status_callback: function
     
     >>> deadline = time.time() + 300
-    >>> dinnfer_iterator = iter([False, False, True])
+    >>> dinner_iterator = iter([False, False, True])
     >>> def dinner_is_ready():
     ...     return dinner_iterator.next()
     >>> breakfast_iterator = iter([False, False, True])
@@ -755,16 +793,25 @@ def retry(*args, **kwargs):
     ...         return Failure("not ready yet")
     ...     else:
     ...         return Success("Ready!")
-    >>> wait_for_dinner()  # doctest: +SKIP
-    (RetryLog, Success("Ready!"))
+    >>> result = wait_for_dinner()  # doctest: +SKIP
+    >>> result  # doctest: +SKIP
+    Success("Ready!")
+    >>> result.elapsed  # doctest: +SKIP
+    8
+    >>> result.count  # doctest: +SKIP
+    3
     >>> def wait_for_breakfast():
     ...     if breakfast_is_ready() is False:
     ...         return Failure("not ready yet")
     ...     else:
     ...         return Success("Ready!")
     >>> wait_for_breakfast_with_retry = retry(wait_for_breakfast)
-    >>> wait_for_breakfast_with_retry() # doctest: +SKIP
-    (RetryLog, Success("Ready!"))
+    >>> result = wait_for_breakfast_with_retry() # doctest: +SKIP
+    Success("Ready!")
+    >>> result.elapsed   # doctest: +SKIP
+    8
+    >>> result.count # doctest: +SKIP
+    3
     '''
 
     # if used as a decorator without arguments `@retry`, the first argument is

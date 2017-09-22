@@ -35,14 +35,57 @@ def test_try_get():
 
 
 def test_try_message():
-    assert Failure(0).get_message() == '0'
-    assert Failure(0, message="fubar").get_message() == "fubar"
+    assert Failure(0).message == '0'
+    assert Failure(0, message="fubar").message == "fubar"
 
-    assert Success(1).get_message() == '1'
-    assert Success(1, message="ok").get_message() == "ok"
+    assert Success(1).message == '1'
+    assert Success(1, message="ok").message == "ok"
 
-    f = Failure(0, message="fubar").set_message('0mfg')
-    assert f.get_message() == '0mfg'
+
+def test_try_time_accounting():
+    s = Success(0)
+    assert s.start is None
+    assert s.end is None
+    assert s.elapsed is None
+    assert s.count == 1
+
+    s = Success(0, start=1, end=10, count=3)
+    assert s.start == 1
+    assert s.end == 10
+    assert s.elapsed == 9
+    assert s.count == 3
+
+    with pytest.raises(tryme.InvalidTryError):
+        Success(0, start=None, end=10)
+
+    with pytest.raises(tryme.InvalidTryError):
+        Success(0, start=0, end=None)
+
+
+def test_try_update():
+    s0 = Success(0)
+    assert s0.start is None
+    assert s0.end is None
+    assert s0.elapsed is None
+    assert s0.count == 1
+    assert s0.message == '0'
+    
+    s1 = s0.update(start=1, end=10, count=3, message='Succeeded!')
+    assert s1 != s0
+    assert s1.start == 1
+    assert s1.end == 10
+    assert s1.elapsed == 9
+    assert s1.count == 3
+    assert s1.message == 'Succeeded!'
+    assert s0.message == '0'
+    
+    s2 = s1.update(count=5, message='Failed!')
+    assert s2 != s1
+    assert s2.start == 1
+    assert s2.end == 10
+    assert s2.elapsed == 9
+    assert s2.count == 5
+    assert s2.message == 'Failed!'
 
     
 def test_try_map():

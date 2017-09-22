@@ -8,20 +8,20 @@ def test_retry_simple(capsys):
     def always_true():
         return tryme.Success('it worked!')
 
-    log, result = always_true()
-    assert log.start != log.end
-    assert log.count == 1
-    assert log.elapsed == log.end - log.start
+    result = always_true()
+    assert result.start != result.end
+    assert result.count == 1
+    assert result.elapsed == result.end - result.start
     assert result.succeeded()
 
     def also_true():
         return tryme.Success('it worked!')
 
     decorated_also_true = retry(also_true)
-    log, result = decorated_also_true()
-    assert log.start != log.end
-    assert log.count == 1
-    assert log.elapsed == log.end - log.start
+    result = decorated_also_true()
+    assert result.start != result.end
+    assert result.count == 1
+    assert result.elapsed == result.end - result.start
     assert result.succeeded()
 
     # # retry should be silent by default
@@ -36,10 +36,10 @@ def test_retry_timeout(stopped_clock):
     def never_true():
         return tryme.Failure('It failed!')
 
-    log, result = never_true()
-    assert log.start != log.end
-    assert log.count == 3
-    assert log.elapsed == log.end - log.start
+    result = never_true()
+    assert result.start != result.end
+    assert result.count == 3
+    assert result.elapsed == result.end - result.start
     assert result.failed()
 
     
@@ -52,10 +52,10 @@ def test_retry_success_after_3_tries(stopped_clock):
     def success_on_3rd_attempt():
         return success_iterator.next()
 
-    log, result = success_on_3rd_attempt()
-    assert log.start != log.end
-    assert log.count == 3
-    assert log.elapsed == 900
+    result = success_on_3rd_attempt()
+    assert result.start != result.end
+    assert result.count == 3
+    assert result.elapsed == 900
     assert result.succeeded()
 
 
@@ -70,8 +70,8 @@ def test_retry_fail_invalid_return_values():
 def test_retry_logging_callback(capsys, stopped_clock):
     stopped_clock.set_times([0, 100, 200, 300, 400])
     
-    def logging_callback(log):
-        print("Retrying after %d seconds and %d attempts" % (log.elapsed, log.count))
+    def logging_callback(result):
+        print("Retrying after %d seconds and %d attempts" % (result.elapsed, result.count))
     
     success_iterator = iter([Failure('failed!'), Failure('failed!'), Success('success!')])
     
@@ -79,7 +79,7 @@ def test_retry_logging_callback(capsys, stopped_clock):
     def success_on_3rd_attempt():
         return success_iterator.next()
 
-    _, _ = success_on_3rd_attempt()
+    success_on_3rd_attempt()
     stdout, stderr = capsys.readouterr()
 
     lines = stdout.strip().split('\n')
@@ -96,7 +96,9 @@ def test_retry_progress_ticks_80_per_column(capsys, stopped_clock):
     def this_will_timeout():
         return failure_iterator.next()
 
-    _, result = this_will_timeout()
+    result = this_will_timeout()
+    assert result.elapsed == 90
+    assert result.count == 90
     stdout, stderr = capsys.readouterr()
     
     assert result.failed()

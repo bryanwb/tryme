@@ -335,27 +335,29 @@ instance of `Failure`.
            
    def server_ready(name):
        # the decorated function will return two values,
-       # a log accounting for the time spent retrying and the return value of the wrapped function
-       log, result = wait_for_server_ready_or_failed(name)
+       # the result of wrapped function is updated with start and end times of the
+       # retry loop and the total count of attempts
+       # note that the wrapped value is not modified
+       result = wait_for_server_ready_or_failed(name)
 
        # a failure here only indicates a timeout
        if result.failed():
-           return Failure("Server %s not ready after %d seconds" % (name, log.elapsed))
+           return Failure("Server %s not ready after %d seconds and %d attempts"
+                          % (name, result.elapsed, result.count))
 
        # unwrap the value to see what really happened
        status = result.get()
        if status == 'Ready':
            return Success('server %s is ready after %d seconds and %d attempts!"
-                          % (name, log.elapsed, log.count))
+                          % (name, result.elapsed, result.count))
        else:
            return Failure('server %s failed after %d seconds!"
-                          % (name, log.elapsed))
+                          % (name, result.elapsed))
 
    make_server('jenkins')
    result = server_ready('jenkins')
    assert result.succeeded()
-   # prints "Server jenkins is ready after n seconds and n attempts!"
-   result.to_console()
+   print "Server jenkins is ready after %d seconds and %d attempts!" % (result.elapsed, result.count)
    
 There something a little weird about the above example. Why did we return
 Success when the status was "Failed"? This is because the return value of
