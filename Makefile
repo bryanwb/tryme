@@ -34,7 +34,7 @@ doc-html: test
 	cd $(DOCS_DIR); $(MAKE) html
 
 release: test docs
-	python setup.py sdist --formats=zip,gztar
+	python setup.py sdist --formats=gztar
 	@echo "Uploading to PyPI."
 	twine upload dist/tryme-$(VERSION).*
 	@echo "Done."
