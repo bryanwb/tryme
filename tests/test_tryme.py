@@ -71,7 +71,6 @@ def test_try_update():
     assert s0.message == '0'
     
     s1 = s0.update(start=1, end=10, count=3, message='Succeeded!')
-    assert s1 != s0
     assert s1.start == 1
     assert s1.end == 10
     assert s1.elapsed == 9
@@ -79,13 +78,12 @@ def test_try_update():
     assert s1.message == 'Succeeded!'
     assert s0.message == '0'
     
-    s2 = s1.update(count=5, message='Failed!')
-    assert s2 != s1
+    s2 = s1.update(count=5, message='It worked!')
     assert s2.start == 1
     assert s2.end == 10
     assert s2.elapsed == 9
     assert s2.count == 5
-    assert s2.message == 'Failed!'
+    assert s2.message == 'It worked!'
 
     
 def test_try_map():
@@ -191,7 +189,7 @@ def test_try_raise():
         f.raise_for_error()
         assert False, "raise_for_error should raise an exception for a Failure"        
     except tryme.FailureError as e:
-        assert e.message == failure_message
+        assert e.__str__() == failure_message
 
     failure_message = 'it failed!'
     f = Failure(RuntimeError(failure_message))
@@ -199,7 +197,7 @@ def test_try_raise():
         f.raise_for_error()
         assert False, "raise_for_error should raise a RuntimeError when RuntimeError is the original argument"        
     except RuntimeError as e:
-        assert e.message == failure_message
+        assert e.__str__() == failure_message
 
     failure_message = 'it failed!'
     f = Failure(failure_message)

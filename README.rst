@@ -61,7 +61,8 @@ Strategy #1 Return a boolean
 The simplest possible strategy is to return a boolean to indicate the success or
 failure. For a simple example, let's build a trivial program to check if Google is accessible.
 
-Our first iteration will simply return a boolean to indicate if Google is accessible.::
+Our first iteration will simply return a boolean to indicate if Google is accessible.
+::
 
   import requests
 
@@ -72,9 +73,9 @@ Our first iteration will simply return a boolean to indicate if Google is access
 
   is_accessible = google_is_accessible()
   if is_accessible:
-      print 'It works!'
+      print('It works!')
   else:
-      print 'Google is not accessible. No idea why'
+      print('Google is not accessible. No idea why')
 
 Awesome! We now can check if Google is accessible from our remote location. The big drawback
 is that `google_is_accessible` doesn't tell me what went wrong in case of a failure nor
@@ -85,7 +86,8 @@ Strategy #2 Return a tuple of (err, value)
 ---------------------------------------------
 
 A similar approach is to return a tuple of (err, value) where err indicates if an error
-occurred. This approach is idiomatic in the Go programming language.::
+occurred. This approach is idiomatic in the Go programming language.
+::
 
   import requests
 
@@ -96,9 +98,9 @@ occurred. This approach is idiomatic in the Go programming language.::
 
   is_accessible, response = google_is_accessible()
   if is_accessible:
-      print 'It works!'
+      print('It works!')
   else:
-      print 'Google is not accessible, received http status %s' % response.status_code
+      print('Google is not accessible, received http status %s' % response.status_code)
 
 
 This is a big improvement! We now can determine what went wrong should we care.
@@ -122,14 +124,16 @@ Google is not accessible.::
       
   is_accessible, response = google_is_accessible()
   if is_accessible:
-      print 'It works! Using Google'
+      print('It works! Using Google')
   else:
-      print 'Google is not accessible, received http status %s. Trying duckduckgo' % response.status_code
+      print('Google is not accessible, received http status %s. Trying duckduckgo'
+            % response.status_code))
       is_accessible, response = duck_duck_go_is_accessible()
       if is_accessible:
-           print 'It works! Using DuckDuckGo'
+           print('It works! Using DuckDuckGo')
       else:
-           print 'DuckDuckGo is not accessible, received http status %s. Out of options' % response.status_code
+           print('DuckDuckGo is not accessible, received http status %s. Out of options'
+                 % response.status_code))
 
 The conditionals in the above example can be reduced but it is apparent that returning a tuple
 adds more conditional logic to your code.
@@ -175,7 +179,8 @@ Strategy #4 Return a custom Error in case of Failure
 ------------------------------------------------------
 
 Instead of raising an Exception, you can simply return an `Error` in case of
-failure where Error is an object that is an exception or looks a lot like one.::
+failure where Error is an object that is an exception or looks a lot like one.
+::
 
   import requests
 
@@ -196,10 +201,10 @@ failure where Error is an object that is an exception or looks a lot like one.::
 
    result = google_is_accessible()
    if result is True:
-       print 'It worked!'
+       print('It worked!')
    else:
-       print result.message
-       print 'HTTP request failed with status code %d' result.value.status_code
+       print(result.message)
+       print('HTTP request failed with status code %d' result.value.status_code)
 
 This is a big improvement! We can quickly determine if google is accessible and have
 access to all the information in the request. The main drawback to returning a custom
@@ -234,10 +239,10 @@ Here is the same task using the ``Success`` and ``Failure``::
 
    result = google_is_accessible()
    if result.succeeded():
-       print 'it worked!'
+       print('it worked!')
    else:
        response = result.get_failure()
-       print 'HTTP request failed with status %d' % response.status_code
+       print('HTTP request failed with status %d' % response.status_code)
 
 We noted earlier that an advantage of returning exceptions is that we can subclass
 Exception to more specifically indicate the failure. We can do the same with
@@ -265,12 +270,12 @@ that it does not account for a network failure.::
 
    result = google_is_accessible()
    if result.succeeded():
-       print 'it worked!'
+       print('it worked!')
    elif isinstance(result, ConnectionFailure):
-       print result.get_message()
+       print(result.get_message())
    else:
        response = result.get_failure()
-       print 'HTTP request failed with status %d' % response.status_code
+       print('HTTP request failed with status %d' % response.status_code)
 
 
 Note that while we return a custom Failure in this case there are many cases where it
@@ -321,7 +326,7 @@ instance of `Failure`.
 
    
    def check_instance_status(name):
-       return status_iterator.next()
+       return next(status_iterator)
 
      
    @retry
@@ -330,7 +335,7 @@ instance of `Failure`.
        if status in ['Ready', 'Failed']:
            return Success(status)
        else:
-           return Failure("Not ready yet")
+           return Failure(status)
 
            
    def server_ready(name):
@@ -348,23 +353,68 @@ instance of `Failure`.
        # unwrap the value to see what really happened
        status = result.get()
        if status == 'Ready':
-           return Success('server %s is ready after %d seconds and %d attempts!"
+           return Success("server %s is ready after %d seconds and %d attempts!"
                           % (name, result.elapsed, result.count))
        else:
-           return Failure('server %s failed after %d seconds!"
+           return Failure("server %s failed after %d seconds!"
                           % (name, result.elapsed))
 
-   make_server('jenkins')
    result = server_ready('jenkins')
    assert result.succeeded()
-   print "Server jenkins is ready after %d seconds and %d attempts!" % (result.elapsed, result.count)
+   print("Server jenkins is ready after %d seconds and %d attempts!"
+         % (result.elapsed, result.count))
    
 There something a little weird about the above example. Why did we return
 Success when the status was "Failed"? This is because the return value of
 Failure in the wrapped function is a signal to the `@retry` decorator to
-continue retrying until the timeout is reached.
+continue retrying until the timeout is reached. As noted earlier, you
+can subclass Success and Failure with names that make more sense for your context.
+Tryme in fact comes with two subclasses py:class:`Stop` and py:class:`Again`. Let's
+refactor the previous example to use them.::
 
+   from tryme import retry, Success, Failure, Stop, Again
 
+   def create_server(name):
+       return {'Name': name}
+
+   status_iterator = iter(['Preparing', 'Preparing', 'Preparing', 'Ready'])
+
+   def check_instance_status(name):
+       return next(status_iterator)
+
+   @retry
+   def wait_for_server_ready_or_failed(name):
+       status = check_instance_status(name)
+       if status in ['Ready', 'Failed']:
+           return Stop(status)
+       else:
+           return Again(status)
+
+   def server_ready(name):
+       # the decorated function will return two values,
+       # the result of wrapped function is updated with start and end times of the
+       # retry loop and the total count of attempts
+       # note that the wrapped value is not modified
+       result = wait_for_server_ready_or_failed(name)
+
+       # a failure here only indicates a timeout
+       if result.failed():
+           return Failure("Server %s not ready after %d seconds and %d attempts"
+                          % (name, result.elapsed, result.count))
+
+       # unwrap the value to see what really happened
+       status = result.get()
+       if status == 'Ready':
+           return Success("server %s is ready after %d seconds and %d attempts!"
+                          % (name, result.elapsed, result.count))
+       else:
+           return Failure("server %s failed after %d seconds!"
+                          % (name, result.elapsed))
+
+   result = server_ready('jenkins')
+   assert result.succeeded()
+   print("Server jenkins is ready after %d seconds and %d attempts!"
+         % (result.elapsed, result.count))
        
 Utility methods
 --------------------
@@ -376,17 +426,17 @@ in a Failure class. If an exception was not raised, a Success is returned
 
   >>> from tryme import try_out
   >>> result = try_out(lambda: 1 / 0)
-  >>> print result
+  >>> print(result)  # doctest: +SKIP
   Failure(ZeroDivisionError('integer division or modulo by zero',))
   >>> exc = result.get_failure()
-  >>> exc
+  >>> exc # doctest: +SKIP
   ZeroDivisionError('integer division or modulo by zero',)
   >>> # the following would fail as it does not catch the correct exception, ZeroDivisionError
   >>> # result = try_out(lambda: 1 / 0, exception=ValueError)
   >>> result = try_out(lambda: 1 / 1)
-  >>> print result
+  >>> print(result) # doctest: +SKIP
   Success(1)
-  >>> result.get()
+  >>> result.get() # doctest: +SKIP
   1
 
 

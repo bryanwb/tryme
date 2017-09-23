@@ -1,4 +1,4 @@
-from tryme.tryme import retry, Success, Failure
+from tryme.tryme import retry, Success, Failure, Stop, Again
 from tryme import tryme
 import pytest
 
@@ -50,7 +50,7 @@ def test_retry_success_after_3_tries(stopped_clock):
     
     @retry(timeout=1000)
     def success_on_3rd_attempt():
-        return success_iterator.next()
+        return next(success_iterator)
 
     result = success_on_3rd_attempt()
     assert result.start != result.end
@@ -58,7 +58,35 @@ def test_retry_success_after_3_tries(stopped_clock):
     assert result.elapsed == 900
     assert result.succeeded()
 
+    stopped_clock.set_times([0, 100, 200, 300, 400])
+    
+    @retry
+    def never_ready():
+        return tryme.Again('not ready!')
 
+    result = never_ready()
+    assert result.start != result.end
+    assert result.count == 3
+    assert result.elapsed == result.end - result.start
+    assert result.failed()
+
+
+def test_retry_stop_again_aliases(stopped_clock):
+    stopped_clock.set_times([0, 400, 800, 900, 950])
+
+    success_iterator = iter([Again('not ready!'), Again('not ready!'), Stop('ready!')])
+    
+    @retry(timeout=1000)
+    def success_on_3rd_attempt():
+        return next(success_iterator)
+
+    result = success_on_3rd_attempt()
+    assert result.start != result.end
+    assert result.count == 3
+    assert result.elapsed == 900
+    assert result.succeeded()
+
+    
 def test_retry_fail_invalid_return_values():
     def invalid_return_values():
         return False
@@ -77,7 +105,7 @@ def test_retry_logging_callback(capsys, stopped_clock):
     
     @retry(status_callback=logging_callback)
     def success_on_3rd_attempt():
-        return success_iterator.next()
+        return next(success_iterator)
 
     success_on_3rd_attempt()
     stdout, stderr = capsys.readouterr()
@@ -94,7 +122,7 @@ def test_retry_progress_ticks_80_per_column(capsys, stopped_clock):
 
     @retry(status_callback=tryme.tick_counter(), timeout=90)
     def this_will_timeout():
-        return failure_iterator.next()
+        return next(failure_iterator)
 
     result = this_will_timeout()
     assert result.elapsed == 90

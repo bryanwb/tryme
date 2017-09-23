@@ -8,6 +8,9 @@ import time
 from abc import ABCMeta, abstractmethod
 from functools import wraps, total_ordering
 
+# Is this Python 3?
+PY3 = sys.version_info > (3, 0)
+
 
 class Null(object):
     """Null represents nothing."""
@@ -231,7 +234,6 @@ class Try(Monad, Ord):
     def succeeded(self):
         """Return a Boolean that indicates if the value is an instance of Success
 
-        >>> from tryme import Failure, Success
         >>> Success(True).succeeded()
         True
         >>> Failure('fubar').succeeded()
@@ -242,7 +244,6 @@ class Try(Monad, Ord):
     def failed(self):
         """Return a Boolean that indicates if the value is an instance of Failure
 
-        >>> from tryme import Failure, Success
         >>> Failure('shit is fucked up').failed()
         True
         >>> Success('it worked!').failed()
@@ -383,7 +384,7 @@ class Try(Monad, Ord):
 
         :param predicate: a function that takes the wrapped value as its argument and returns a boolean value
         :rtype: :class:`Try <Try>` object
-        :return: tryme.Try
+        :return: Try
         '''
         if self.failed():
             return self
@@ -508,7 +509,7 @@ class Maybe(Monad, Ord):
 
         :param predicate: a function that takes the wrapped value as its argument and returns a boolean value
         :rtype: :class:`Maybe <Maybe>` object
-        :return: tryme.Maybe
+        :return: Maybe
         '''
         if self.is_empty():
             return self
@@ -562,10 +563,13 @@ Maybe.zero = Nothing
 
 def _get_stacktrace():
     import traceback
-    import StringIO
+    if PY3:
+        from io import StringIO
+    else:
+        from StringIO import StringIO
 
     t, _, tb = sys.exc_info()
-    f = StringIO.StringIO()
+    f = StringIO()
     traceback.print_tb(tb, None, f)
     stacktrace = f.getvalue()
     return stacktrace
@@ -667,7 +671,7 @@ class StoppedClock:
         pass
 
     def time(self):
-        current_time = self.current.next()
+        current_time = next(self.current)
         if not isinstance(current_time, tuple):
             return current_time
 
@@ -714,6 +718,22 @@ def tick_counter(column_limit=80):
     
 
 _clock = SystemClock()
+
+
+class Again(Failure):
+    """
+    Again of :py:class:`Failure`.
+    A handy alias of :py:class:`Failure` to indicate that an operation should be retried
+    """
+    pass
+
+
+class Stop(Success):
+    """
+    Stop of :py:class:`Success`.
+    A handy alias of :py:class:`Success` to indicate that an operation should **not** be retried
+    """
+    pass
 
 
 class InvalidCallableError(Exception):
@@ -779,39 +799,54 @@ def retry(*args, **kwargs):
     :param status_callback: (optional) callback to invoke after each retry, is passed the result
                             as an argument
     :type status_callback: function
-    
-    >>> deadline = time.time() + 300
-    >>> dinner_iterator = iter([False, False, True])
-    >>> def dinner_is_ready():
-    ...     return dinner_iterator.next()
-    >>> breakfast_iterator = iter([False, False, True])
-    >>> def breakfast_is_ready():
-    ...     return breakfast_iterator.next()
-    >>> @retry
-    ... def wait_for_dinner():
-    ...     if dinner_is_ready() is False:
-    ...         return Failure("not ready yet")
-    ...     else:
-    ...         return Success("Ready!")
-    >>> result = wait_for_dinner()  # doctest: +SKIP
-    >>> result  # doctest: +SKIP
-    Success("Ready!")
-    >>> result.elapsed  # doctest: +SKIP
-    8
-    >>> result.count  # doctest: +SKIP
-    3
-    >>> def wait_for_breakfast():
-    ...     if breakfast_is_ready() is False:
-    ...         return Failure("not ready yet")
-    ...     else:
-    ...         return Success("Ready!")
-    >>> wait_for_breakfast_with_retry = retry(wait_for_breakfast)
-    >>> result = wait_for_breakfast_with_retry() # doctest: +SKIP
-    Success("Ready!")
-    >>> result.elapsed   # doctest: +SKIP
-    8
-    >>> result.count # doctest: +SKIP
-    3
+
+    Usage::
+      >>> deadline = time.time() + 300
+      >>> dinner_iterator = iter([False, False, True])
+      >>> def dinner_is_ready():
+      ...     return next(dinner_iterator)
+      >>> breakfast_iterator = iter([False, False, True])
+      >>> def breakfast_is_ready():
+      ...     return next(breakfast_iterator)
+      >>> @retry
+      ... def wait_for_dinner():
+      ...     if dinner_is_ready():
+      ...         return Success("Ready!")
+      ...     else:
+      ...         return Failure("not ready yet")
+      >>> result = wait_for_dinner()  # doctest: +SKIP
+      >>> result  # doctest: +SKIP
+      Success("Ready!")
+      >>> result.elapsed  # doctest: +SKIP
+      8
+      >>> result.count  # doctest: +SKIP
+      3
+      >>> @retry
+      ... def wait_for_breakfast():
+      ...     if breakfast_is_ready():
+      ...         return Success("Ready!")
+      ...     else:
+      ...         return Failure("not ready yet")
+      >>> result = wait_for_breakfast() # doctest: +SKIP
+      Success("Ready!")
+      >>> result.elapsed   # doctest: +SKIP
+      8
+      >>> result.count # doctest: +SKIP
+      3
+
+    The names py:class:`Success` and py:class:`Failure` do not always
+    map well to operations that need to be retried. The subclasses
+    py:class:`Stop` and py:class:`Again` can be more intuitive.::
+      >>> breakfast_iterator = iter([False, False, True])
+      >>> def breakfast_is_ready():
+      ...     return next(breakfast_iterator)
+      >>> @retry
+      ... def wait_for_breakfast():
+      ...     if breakfast_is_ready():
+      ...         return Stop("Ready!")
+      ...     else:
+      ...         return Again("not ready yet")
+
     '''
 
     # if used as a decorator without arguments `@retry`, the first argument is

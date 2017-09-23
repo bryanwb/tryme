@@ -33,21 +33,13 @@ docs: doc-html
 doc-html: test
 	cd $(DOCS_DIR); $(MAKE) html
 
-release: quality coverage tox
-	@echo 'Checking release version, abort if attempt to release a dev version.'
-	echo '$(VERSION)' | grep -qv dev
-	@echo 'Bumping version number to $(VERSION), abort if no pending changes.'
-	git commit -m 'Bumped version number to $(VERSION)'
-	@echo "Tagging release version $(VERSION), abort if already exists."
-	git tag $(VERSION)
+release: test docs
+	python setup.py sdist --formats=zip,gztar
 	@echo "Uploading to PyPI."
-	python setup.py sdist upload --sign
+	twine upload dist/tryme-$(VERSION).*
 	@echo "Done."
 
 test:
-	py.test -v
-
-tox:
 	tox
 
 clean:
