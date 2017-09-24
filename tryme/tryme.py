@@ -748,7 +748,7 @@ def raise_if_invalid_result(result):
             "return either tryme.Success, tryme.Failure, or raise an exception")
 
 
-def retry_wrapper(acallable, timeout=300, delay=4, status_callback=None):
+def retry_wrapper(acallable, timeout=300, delay=5, status_callback=None):
 
     @wraps(acallable)
     def _retry(*args, **kwargs):
@@ -792,12 +792,13 @@ def retry(*args, **kwargs):
 
     :param acallable: object that can be called
     :type acallable: function
-    :param timeout: (optional) maximum period, in seconds, to wait until an individual try succeeds
+    :param timeout: (optional) maximum period, in seconds, to wait until an individual try succeeds.
+                    Defaults to ``300`` seconds.
     :type timeout: int
-    :param delay: (optional) delay between retries in seconds
+    :param delay: (optional) delay between retries in seconds. Defaults to ``5`` seconds.
     :type delay: int
     :param status_callback: (optional) callback to invoke after each retry, is passed the result
-                            as an argument
+                            as an argument. Defaults to ``None``.
     :type status_callback: function
 
     Usage::
