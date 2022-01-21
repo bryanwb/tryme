@@ -8,5 +8,5 @@ sphinx-rtd-theme
 # these are refactoring debugging libs used by vim, emacs, and SublimeText
 jedi
 importmagic
-ipython==4
+ipython==7.16.3
 autopep8
